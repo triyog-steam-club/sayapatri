@@ -9,7 +9,7 @@ const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
 
 const MAX_REVIEWERS_PER_SHEET = 250;
 
-export async function getGoogleSheetsInstance() {
+async function getGoogleSheetsInstance() {
 
   const auth = new google.auth.JWT({
     email: GOOGLE_CLIENT_EMAIL,
