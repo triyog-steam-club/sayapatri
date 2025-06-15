@@ -1,9 +1,11 @@
 // pages/api/submit-rsvp.js (for Next.js Pages Router)
 // OR app/api/submit-rsvp/route.js (for Next.js App Router)
 
+import { NextResponse, NextRequest } from 'next/server';
+
 import { google } from 'googleapis';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
@@ -42,16 +44,10 @@ export async function POST(request: Request) {
     });
 
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error submitting RSVP:', error);
-    return new Response(JSON.stringify({ error: 'Failed to submit RSVP' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new NextResponse ('Failed to submit', { status: 500 });
   }
 }
 
