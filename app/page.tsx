@@ -139,7 +139,7 @@ export default function Home() {
               {/* Ward Information */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Ward Name *</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Child's Name *</label>
                   <input
                     type="text"
                     name="wardName"
@@ -147,11 +147,11 @@ export default function Home() {
                     onChange={handleInputChange}
                     required
                     className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F29F05] focus:border-transparent text-white placeholder-gray-400"
-                    placeholder="Enter ward name"
+                    placeholder="Enter Child's name"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Ward Class *</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Child's Class *</label>
                   <input
                     type="text"
                     name="wardClass"
