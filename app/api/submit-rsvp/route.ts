@@ -52,23 +52,23 @@ async function getCurrentSheetInfo(sheets: any) {
     // Assuming guests column is B, but you can adjust this
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${currentSheetName}!A:B`, // Adjust range if guests column is different
+      range: `${currentSheetName}!A:E`, // Adjust range if guests column is different
     });
 
     const rows = response.data.values || [];
     const currentRowCount = rows.length;
     
-    // Calculate total capacity (reviewers + guests)
     let totalCapacity = 0;
     
-    // Skip header row (index 0) and calculate total capacity
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      const reviewerCount = row[0] ? 1 : 0; // 1 if reviewer exists, 0 if empty
-      const guestCount = row[1] ? parseInt(row[1]) || 0 : 0; // Number of guests, default to 0
+      // const reviewerCount = row[0] ? 1 : 0; // 1 if reviewer exists, 0 if empty
+      const guestCount = row[1] ? parseInt(row[3]) || 0 : 0; // Number of guests, default to 0
       
-      totalCapacity += reviewerCount + guestCount;
+      totalCapacity +=  guestCount;
     }
+
+    console.log(">>>>>>>>>>>>", totalCapacity);
 
     return {
       currentSheetName,

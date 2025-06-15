@@ -215,7 +215,7 @@ class SheetsStressTester:
 
 def main():
     # Configuration
-    API_ENDPOINT = "https://your-domain.com/api/rsvp"  # Replace with your actual endpoint
+    API_ENDPOINT = "http://localhost:3000/api/submit-rsvp"
     NUM_ENTRIES = 250
     CONCURRENT_REQUESTS = 10  # Adjust based on your server capacity
     
