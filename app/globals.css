@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+:root {
+  background: #262626;
+  --acc: #F29F05;
+  --prim: #F28705;
+  --foreground: #fff;
+}
+
+.amita {
+  font-family: var(--amita-sans);
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden; /* Okay */
+  overflow-y: auto;   /* Ensure vertical scroll is allowed */
+}
