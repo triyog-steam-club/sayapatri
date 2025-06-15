@@ -1,20 +1,27 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Calendar, Clock, MapPin, Users, Heart, Send } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Heart, Send, Plus, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import Confirmation from './components/confirmation';
 
 export default function Home() {
-    const [formData, setFormData] = useState({
-    name: '',
+  const [formData, setFormData] = useState({
+    wardName: '',
+    wardClass: '',
+    numberOfParticipants: 1,
     email: '',
     phone: '',
-    guests: 1,
-    specialRequests: ''
+    participants: [
+      { name: '', relationToStudent: '' }
+    ]
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [isCurrentSlot, setIsCurrentSlot] = useState<boolean | null>(null);
+  const [slotNumber, setSlotNumber] = useState<number | null>(null);
 
   const handleInputChange = (e: any) => {
     const { name, value } = e.target;
@@ -24,12 +31,41 @@ export default function Home() {
     }));
   };
 
+  const handleParticipantChange = (index: number, field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      participants: prev.participants.map((participant, i) => 
+        i === index ? { ...participant, [field]: value } : participant
+      )
+    }));
+  };
+
+  const handleNumberOfParticipantsChange = (e: any) => {
+    const count = parseInt(e.target.value);
+    setFormData(prev => {
+      const newParticipants = [...prev.participants];
+      
+      if (count > prev.participants.length) {
+        for (let i = prev.participants.length; i < count; i++) {
+          newParticipants.push({ name: '', relationToStudent: '' });
+        }
+      } else {
+        newParticipants.splice(count);
+      }
+      
+      return {
+        ...prev,
+        numberOfParticipants: count,
+        participants: newParticipants
+      };
+    });
+  };
+
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     try {
-      // Option 1: Using Google Sheets API (requires setup)
       const response = await fetch('/api/submit-rsvp', {
         method: 'POST',
         headers: {
@@ -42,13 +78,18 @@ export default function Home() {
       });
 
       if (response.ok) {
+        const data = await response.json()
         setIsSubmitted(true);
+        setIsCurrentSlot(data.currentSlot);
+        setSlotNumber(data.sheet);
+
       } else {
-        throw new Error('Failed to submit RSVP');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit RSVP');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting RSVP:', error);
-      alert('Failed to submit RSVP. Please try again.');
+      alert(error.message || 'Failed to submit RSVP. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -56,34 +97,7 @@ export default function Home() {
 
   if (isSubmitted) {
     return (
-      <div className="flex flex-col items-center justify-center min-w-screen min-h-screen bg-[#262626] text-white">
-        <div className="max-w-md w-full text-center">
-          <div className="mb-8">
-            <div className="w-20 h-20 bg-gradient-to-r from-[#F28705] to-[#F29F05] rounded-full flex items-center justify-center mx-auto mb-4">
-              <Heart className="w-10 h-10 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-4">Thank You!</h1>
-            <p className="text-gray-300 text-lg">
-              Your RSVP for Sayapatri has been confirmed. We look forward to sharing this powerful story with you.
-            </p>
-          </div>
-          <button 
-            onClick={() => {
-              setIsSubmitted(false);
-              setFormData({
-                name: '',
-                email: '',
-                phone: '',
-                guests: 1,
-                specialRequests: ''
-              });
-            }}
-            className="px-6 py-3 bg-gradient-to-r from-[#F28705] to-[#F29F05] text-white rounded-full hover:from-[#F29F05] hover:to-[#F28705] transition-all duration-300 transform hover:scale-105"
-          >
-            Back to Home
-          </button>
-        </div>
-      </div>
+      <Confirmation isCurrentSlot={isCurrentSlot} formData={formData} currentSlot={slotNumber} setIsSubmitted={setIsSubmitted} setFormData={setFormData}/>
     );
   }
 
@@ -103,7 +117,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-[#F29F05]" />
-            <span>5:00 PM</span>
+            <span>4:30 PM</span>
           </div>
           <div className="flex items-center gap-2">
             <MapPin className="w-5 h-5 text-[#F29F05]" />
@@ -122,19 +136,36 @@ export default function Home() {
             </p>
             
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Ward Information */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Full Name *</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Ward Name *</label>
                   <input
                     type="text"
-                    name="name"
-                    value={formData.name}
+                    name="wardName"
+                    value={formData.wardName}
                     onChange={handleInputChange}
                     required
                     className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F29F05] focus:border-transparent text-white placeholder-gray-400"
-                    placeholder="Enter your full name"
+                    placeholder="Enter ward name"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Ward Class *</label>
+                  <input
+                    type="text"
+                    name="wardClass"
+                    value={formData.wardClass}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F29F05] focus:border-transparent text-white placeholder-gray-400"
+                    placeholder="e.g., Grade 10A"
+                  />
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
                   <input
@@ -146,46 +177,77 @@ export default function Home() {
                     placeholder="your.email@example.com"
                   />
                 </div>
-              </div>
-              
-              <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
                   <input
                     type="tel"
                     name="phone"
+                    required
                     value={formData.phone}
                     onChange={handleInputChange}
+                    pattern="^(\+977)?9\d{9}$"
                     className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F29F05] focus:border-transparent text-white placeholder-gray-400"
                     placeholder="+977 98XXXXXXXX"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Number of Guests *</label>
-                  <select
-                    name="guests"
-                    value={formData.guests}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F29F05] focus:border-transparent text-white"
-                  >
-                    {[1,2,3,4,5,6,7,8].map(num => (
-                      <option key={num} value={num}>{num} {num === 1 ? 'Guest' : 'Guests'}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
+              {/* Number of Participants */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Special Requests or Notes</label>
-                <textarea
-                  name="specialRequests"
-                  value={formData.specialRequests}
-                  onChange={handleInputChange}
-                  rows={4}
-                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F29F05] focus:border-transparent text-white placeholder-gray-400 resize-none"
-                  placeholder="Any accessibility needs or special requests..."
-                />
+                <label className="block text-sm font-medium text-gray-300 mb-2">Number of Guests *</label>
+                <select
+                  name="numberOfParticipants"
+                  value={formData.numberOfParticipants}
+                  onChange={handleNumberOfParticipantsChange}
+                  required
+                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F29F05] focus:border-transparent text-white"
+                >
+                  <option value={1}>1 Participant</option>
+                  <option value={2}>2 Participants</option>
+                </select>
+              </div>
+
+              {/* Participants Information */}
+              <div className="space-y-6">
+                {formData.participants.map((participant, index) => (
+                  <div key={index} className="bg-gray-800/30 rounded-xl space-l-2">
+                    <h4 className="text-sm font-medium text-gray-200 mb-3">
+                      Guest {index + 1}
+                    </h4>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Full Name *</label>
+                        <input
+                          type="text"
+                          value={participant.name}
+                          onChange={(e) => handleParticipantChange(index, 'name', e.target.value)}
+                          required
+                          className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F29F05] focus:border-transparent text-white placeholder-gray-400"
+                          placeholder="Enter full name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Relation to Student *</label>
+                        <select
+                          value={participant.relationToStudent}
+                          onChange={(e) => handleParticipantChange(index, 'relationToStudent', e.target.value)}
+                          required
+                          className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F29F05] focus:border-transparent text-white"
+                        >
+                          <option value="">Select relation</option>
+                          <option value="Father">Father</option>
+                          <option value="Mother">Mother</option>
+                          <option value="Guardian">Guardian</option>
+                          <option value="Sibling">Sibling</option>
+                          <option value="Grandparent">Grandparent</option>
+                          <option value="Uncle">Uncle</option>
+                          <option value="Aunt">Aunt</option>
+                          <option value="Family Friend">Family Friend</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <button
@@ -211,7 +273,7 @@ export default function Home() {
       </div>
 
       <Image
-        src={'/final.png'}
+        src={'/final.jpg'}
         width={720}
         height={1000}
         alt={'poster'}

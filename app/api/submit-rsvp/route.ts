@@ -1,103 +1,195 @@
-// pages/api/submit-rsvp.js (for Next.js Pages Router)
-// OR app/api/submit-rsvp/route.js (for Next.js App Router)
-
-import { NextResponse, NextRequest } from 'next/server';
-
+import { AnyAaaaRecord } from 'dns';
 import { google } from 'googleapis';
 
-export async function POST(request: NextRequest) {
+const CURRENT_SLOT = 'Sheet1';
+
+const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
+const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
+const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+const MAX_REVIEWERS_PER_SHEET = 250;
+
+export async function getGoogleSheetsInstance() {
+
+  const auth = new google.auth.JWT({
+    email: GOOGLE_CLIENT_EMAIL,
+    key: GOOGLE_PRIVATE_KEY ,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  await auth.authorize();
+
+  const sheets = google.sheets({ version: 'v4', auth });
+  return sheets;
+}
+
+
+async function getCurrentSheetInfo(sheets: any) {
   try {
-    const body = await request.json();
-    
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    // Get all sheets in the spreadsheet
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
     });
 
-    const sheets = google.sheets({ version: 'v4', auth });
+    const allSheets = spreadsheet.data.sheets;
     
-    // Your Google Sheets ID (extract from your sheet URL)
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    let currentSheetIndex = 1;
+    let currentSheetName = 'Sheet1';
     
-    // Prepare data to insert
-    const values = [[
-      new Date().toISOString(), // Timestamp
-      body.name,
-      body.email,
-      body.phone,
-      body.guests,
-      body.specialRequests,
-    ]];
+    for (const sheet of allSheets) {
+      const sheetName = sheet.properties.title;
+      const match = sheetName.match(/^Sheet(\d+)$/);
+      if (match) {
+        const sheetNumber = parseInt(match[1]);
+        if (sheetNumber > currentSheetIndex) {
+          currentSheetIndex = sheetNumber;
+          currentSheetName = sheetName;
+        }
+      }
+    }
 
-    // Insert data into the sheet
-    
-    await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range: 'Sheet1!A:F',
-    valueInputOption: 'RAW',
-    requestBody: {
-        values,
-    },
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${currentSheetName}!A:A`,
     });
 
+    const rows = response.data.values || [];
+    const currentRowCount = rows.length;
 
-    return NextResponse.json({ success: true });
+    return {
+      currentSheetName,
+      currentSheetIndex,
+      currentRowCount,
+      needsNewSheet: currentRowCount >= MAX_REVIEWERS_PER_SHEET + 1 // +1 for header row
+    };
   } catch (error) {
-    console.error('Error submitting RSVP:', error);
-    return new NextResponse ('Failed to submit', { status: 500 });
+    console.error('Error getting sheet info:', error);
+    throw error;
   }
 }
 
-async function handler(req: any, res: any) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+async function createNewSheet(sheets: any, sheetIndex: any) {
+  const newSheetName = `Sheet${sheetIndex}`;
+  
+  try {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: newSheetName,
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    const headers = [
+      'Timestamp',
+      'Ward Name',
+      'Ward Class', 
+      'Number of Participants',
+      'Email',
+      'Phone',
+      'Participant 1 Name',
+      'Participant 1 Relation',
+      'Participant 2 Name',
+      'Participant 2 Relation'
+    ];
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${newSheetName}!A1:J1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [headers],
+      },
+    });
+
+    return newSheetName;
+  } catch (error) {
+    console.error('Error creating new sheet:', error);
+    throw error;
   }
+}
+
+async function appendToSheet(sheets: any, sheetName: any, data: any) {
+  // Prepare row data
+  const readableDate = new Date(data.timestamp).toLocaleString('en-US', {
+    timeZone: 'Asia/Kathmandu',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  const rowData = [
+    readableDate,
+    data.wardName,
+    data.wardClass,
+    data.numberOfParticipants,
+    data.email || '',
+    data.phone || '',
+    data.participants[0]?.name || '',
+    data.participants[0]?.relationToStudent || '',
+    data.participants[1]?.name || '',
+    data.participants[1]?.relationToStudent || ''
+  ];
 
   try {
-    const body = req.body;
-    
-    // Initialize Google Sheets API
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-
-    const sheets = google.sheets({ version: 'v4', auth });
-    
-    // Your Google Sheets ID
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-    
-    // Prepare data to insert
-    const values = [[
-      new Date().toISOString(), // Timestamp
-      body.name,
-      body.email,
-      body.phone,
-      body.guests,
-      body.specialRequests,
-    ]];
-
-    // Insert data into the sheet
     await sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range: 'Sheet1!A:F',
-        valueInputOption: 'RAW',
-        requestBody: {
-            values,
-        },
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A:J`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [rowData],
+      },
     });
-
-
-    res.status(200).json({ success: true });
   } catch (error) {
-    console.error('Error submitting RSVP:', error);
-    console.log(error);
-    res.status(500).json({ error: 'Failed to submit RSVP' });
+    console.error('Error appending to sheet:', error);
+    throw error;
+  }
+}
+
+export async function POST(request: any) {
+  try {
+    const data = await request.json();
+    
+    const sheets = await getGoogleSheetsInstance();
+    const sheetInfo = await getCurrentSheetInfo(sheets);
+    
+    let targetSheetName = sheetInfo.currentSheetName;
+    let currentSlot = true; // Default to true for Sheet1
+    
+    if (sheetInfo.needsNewSheet) {
+      const newSheetIndex = sheetInfo.currentSheetIndex + 1;
+      targetSheetName = await createNewSheet(sheets, newSheetIndex);
+      currentSlot = false; // New sheet created, not in current slot
+    } else if (sheetInfo.currentSheetName !== CURRENT_SLOT) {
+      currentSlot = false; // Using existing sheet that's not Sheet1
+    }
+    
+    const match = targetSheetName.match(/\d+$/);
+    const sheetNumber = match ? parseInt(match[0], 10) : null;
+
+    await appendToSheet(sheets, targetSheetName, data);
+    
+    return Response.json({ 
+      message: 'RSVP submitted successfully',
+      sheet: sheetNumber,
+      currentSlot: currentSlot
+    });
+  } catch (error: any) {
+    console.error('Error processing RSVP:', error);
+    return Response.json({ 
+      message: 'Failed to submit RSVP',
+      error: error.message 
+    }, { status: 500 });
   }
 }
