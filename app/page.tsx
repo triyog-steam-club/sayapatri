@@ -56,7 +56,7 @@ export default function Home() {
 
   if (isSubmitted) {
     return (
-      <div className="flex flex-col items-center justify-start min-w-screen min-h-screen bg-[#262626] text-white">
+      <div className="flex flex-col items-center justify-center min-w-screen min-h-screen bg-[#262626] text-white">
         <div className="max-w-md w-full text-center">
           <div className="mb-8">
             <div className="w-20 h-20 bg-gradient-to-r from-[#F28705] to-[#F29F05] rounded-full flex items-center justify-center mx-auto mb-4">
