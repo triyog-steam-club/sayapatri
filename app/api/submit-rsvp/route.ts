@@ -3,7 +3,7 @@
 
 import { google } from 'googleapis';
 
-export async function POST(request : any) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
     
@@ -55,8 +55,7 @@ export async function POST(request : any) {
   }
 }
 
-// For Pages Router (Next.js 12 and below)
-export default async function handler(req: any, res: any) {
+async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
