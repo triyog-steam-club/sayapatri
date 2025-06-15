@@ -6,7 +6,8 @@ import "./globals.css";
 const amitaFont = Amita({
   variable: "--amita-sans",
   weight: "700",
-  style: "normal"
+  style: "normal",
+  subsets: ['latin', 'devanagari']
 });
 
 export const metadata: Metadata = {
